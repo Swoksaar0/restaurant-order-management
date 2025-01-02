@@ -1,3 +1,5 @@
+import java.util.Objects;
+
 public class MenuItem {
     private String name;
     private double price;
@@ -31,6 +33,21 @@ public class MenuItem {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        MenuItem menuItem = (MenuItem) obj;
+        return Double.compare(menuItem.price, price) == 0 &&
+                name.equals(menuItem.name) &&
+                category.equals(menuItem.category);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, price, category);
     }
 
     @Override
