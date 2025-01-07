@@ -35,6 +35,16 @@ public class Order {
         return totalAmount;
     }
 
+    // Display the order details
+    public void showOrderDetails() {
+        System.out.println("Order ID: " + orderId);
+        System.out.println("Items in the order:");
+        for (MenuItem item : items) {
+            System.out.println(item);
+        }
+        System.out.println("Total Amount: $" + totalAmount);
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;

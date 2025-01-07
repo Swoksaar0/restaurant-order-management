@@ -15,24 +15,17 @@ public class MenuItem {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
     public double getPrice() {
         return price;
-    }
-
-    public void setPrice(double price) {
-        this.price = price;
     }
 
     public String getCategory() {
         return category;
     }
 
-    public void setCategory(String category) {
-        this.category = category;
+    @Override
+    public String toString() {
+        return "MenuItem{name='" + name + "', price=" + price + ", category='" + category + "'}";
     }
 
     @Override
@@ -49,10 +42,6 @@ public class MenuItem {
     public int hashCode() {
         return Objects.hash(name, price, category);
     }
-
-    @Override
-    public String toString() {
-        return "MenuItem{name='" + name + "', price=" + price + ", category='" + category + "'}";
-    }
 }
+
 
