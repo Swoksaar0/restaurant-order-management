@@ -1,109 +1,158 @@
+import java.sql.*;
 import java.util.Scanner;
-import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
+        String dbUrl = "jdbc:postgresql://localhost:2020/postgres";
+        String username = "postgres";
+        String password = "dima2345";
         Scanner scanner = new Scanner(System.in);
 
-        // Create a restaurant and add menu items
-        Restaurant restaurant = new Restaurant("My Fancy Restaurant");
-        restaurant.addMenuItem(new MenuItem("Pizza", 8.99, "Main Course"));
-        restaurant.addMenuItem(new MenuItem("Burger", 5.99, "Main Course"));
-        restaurant.addMenuItem(new MenuItem("Cola", 1.99, "Drink"));
-        restaurant.addMenuItem(new MenuItem("Water", 0.99, "Drink"));
-        restaurant.addMenuItem(new MenuItem("Salad", 4.99, "Appetizer"));
-
-        Order currentOrder = null; // To hold the current order
-
         while (true) {
-            // Display menu options
-            System.out.println("\nWelcome to " + restaurant.getName() + "!");
-            System.out.println("Choose an action:");
-            System.out.println("1. Show all menu items");
-            System.out.println("2. Filter menu by category");
-            System.out.println("3. Search menu item by name");
-            System.out.println("4. Make an order");
-            System.out.println("5. Show current order details");
-            System.out.println("6. Exit");
+            System.out.println("Choose role:");
+            System.out.println("1. Admin");
+            System.out.println("2. User");
+            System.out.println("3. Quit");
+            int role = scanner.nextInt();
 
-            System.out.print("Your choice: ");
-            int choice = scanner.nextInt();
-            scanner.nextLine(); // Consume the newline
+            if (role == 1) {
+                System.out.println("Choose action:\n1. Add new menu item\n2. Delete menu item\n3. Exit");
+                int action = scanner.nextInt();
 
-            if (choice == 1) {
-                // Show all menu items
-                System.out.println("\nRestaurant menu:");
-                for (MenuItem item : restaurant.getMenu()) {
-                    System.out.println(item);
-                }
-            } else if (choice == 2) {
-                // Filter menu by category
-                System.out.print("\nEnter a category (e.g., Drink, Main Course): ");
-                String category = scanner.nextLine();
-                List<MenuItem> filteredMenu = restaurant.filterMenuByCategory(category);
+                if (action == 1) {
+                    System.out.println("Name:");
+                    String name = scanner.next();
+                    System.out.println("Price:");
+                    double price = scanner.nextDouble();
+                    System.out.println("Category:");
+                    String category = scanner.next();
 
-                if (!filteredMenu.isEmpty()) {
-                    System.out.println("\nItems in category \"" + category + "\":");
-                    for (MenuItem item : filteredMenu) {
-                        System.out.println(item);
+                    try (Connection connection = DriverManager.getConnection(dbUrl, username, password)) {
+                        String query = "INSERT INTO menu_item (name, price, category) VALUES (?, ?, ?)";
+                        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+                            stmt.setString(1, name);
+                            stmt.setDouble(2, price);
+                            stmt.setString(3, category);
+                            stmt.executeUpdate();
+                            System.out.println("Menu item added successfully.");
+                        }
+                    } catch (SQLException e) {
+                        System.err.println("Database error: " + e.getMessage());
                     }
-                } else {
-                    System.out.println("\nNo items found in category \"" + category + "\".");
-                }
-            } else if (choice == 3) {
-                // Search menu item by name
-                System.out.print("\nEnter the name of the item: ");
-                String name = scanner.nextLine();
-                MenuItem foundItem = restaurant.searchMenuItemByName(name);
 
-                if (foundItem != null) {
-                    System.out.println("\nItem found:");
-                    System.out.println(foundItem);
-                } else {
-                    System.out.println("\nItem \"" + name + "\" not found.");
+                } else if (action == 2) {
+                    System.out.println("Item ID to delete:");
+                    int itemId = scanner.nextInt();
+
+                    try (Connection connection = DriverManager.getConnection(dbUrl, username, password)) {
+                        String query = "DELETE FROM menu_item WHERE id = ?";
+                        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+                            stmt.setInt(1, itemId);
+                            int rowsAffected = stmt.executeUpdate();
+
+                            if (rowsAffected > 0) {
+                                System.out.println("Menu item deleted successfully.");
+                            } else {
+                                System.out.println("Item not found.");
+                            }
+                        }
+                    } catch (SQLException e) {
+                        System.err.println("Database error: " + e.getMessage());
+                    }
+                } else if (action == 3) {
+                    continue;
                 }
-            } else if (choice == 4) {
-                // Make an order
-                if (currentOrder == null) {
-                    System.out.print("\nEnter a unique Order ID: ");
+
+            } else if (role == 2) {
+                System.out.println("Choose action:\n1. Make an order\n2. Show my order\n3. Exit");
+                int action = scanner.nextInt();
+
+                if (action == 1) {
+                    System.out.println("Enter a unique Order ID:");
                     int orderId = scanner.nextInt();
-                    scanner.nextLine(); // Consume the newline
-                    currentOrder = restaurant.createOrder(orderId);
-                    System.out.println("Order created with ID: " + orderId);
-                }
 
-                System.out.println("\nAdd items to your order. Enter the number corresponding to the menu item. Enter 0 to finish.");
-                for (int i = 0; i < restaurant.getMenu().size(); i++) {
-                    System.out.println((i + 1) + ". " + restaurant.getMenu().get(i));
-                }
+                    try (Connection connection = DriverManager.getConnection(dbUrl, username, password)) {
+                        // Insert order into orders table if it does not already exist
+                        String insertOrderQuery = "INSERT INTO orders (order_id, order_details, total_amount) VALUES (?, '', 0) ON CONFLICT (order_id) DO NOTHING";
+                        try (PreparedStatement stmt = connection.prepareStatement(insertOrderQuery)) {
+                            stmt.setInt(1, orderId);
+                            stmt.executeUpdate();
+                        }
 
-                while (true) {
-                    System.out.print("Enter item number: ");
-                    int itemChoice = scanner.nextInt();
+                        // Display menu items
+                        String query = "SELECT * FROM menu_item";
+                        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
+                            System.out.println("Menu:");
+                            while (rs.next()) {
+                                System.out.println(rs.getInt("id") + ". " + rs.getString("name") + " - $" + rs.getDouble("price") + " (" + rs.getString("category") + ")");
+                            }
+                        }
 
-                    if (itemChoice == 0) {
-                        break; // Exit the loop when user is done adding items
+                        // Add items to order
+                        StringBuilder orderDetails = new StringBuilder();
+                        double totalAmount = 0;
+                        System.out.println("Enter the item ID to add to your order (0 to finish):");
+                        while (true) {
+                            int itemId = scanner.nextInt();
+                            if (itemId == 0) break;
+
+                            String getItemQuery = "SELECT name, price FROM menu_item WHERE id = ?";
+                            try (PreparedStatement stmt = connection.prepareStatement(getItemQuery)) {
+                                stmt.setInt(1, itemId);
+                                try (ResultSet rs = stmt.executeQuery()) {
+                                    if (rs.next()) {
+                                        String itemName = rs.getString("name");
+                                        double itemPrice = rs.getDouble("price");
+                                        orderDetails.append(itemName).append(", ");
+                                        totalAmount += itemPrice;
+                                        System.out.println(itemName + " added to your order.");
+                                    } else {
+                                        System.out.println("Invalid item ID. Try again.");
+                                    }
+                                }
+                            }
+                        }
+
+                        // Update order details and total amount
+                        String updateOrderQuery = "UPDATE orders SET order_details = ?, total_amount = ? WHERE order_id = ?";
+                        try (PreparedStatement stmt = connection.prepareStatement(updateOrderQuery)) {
+                            stmt.setString(1, orderDetails.toString());
+                            stmt.setDouble(2, totalAmount);
+                            stmt.setInt(3, orderId);
+                            stmt.executeUpdate();
+                            System.out.println("Order updated successfully.");
+                        }
+                    } catch (SQLException e) {
+                        System.err.println("Database error: " + e.getMessage());
                     }
 
-                    if (itemChoice > 0 && itemChoice <= restaurant.getMenu().size()) {
-                        MenuItem selectedItem = restaurant.getMenu().get(itemChoice - 1);
-                        currentOrder.addItem(selectedItem);
-                        System.out.println(selectedItem.getName() + " added to your order.");
-                    } else {
-                        System.out.println("Invalid choice. Please try again.");
+                } else if (action == 2) {
+                    System.out.println("Enter your Order ID:");
+                    int orderId = scanner.nextInt();
+
+                    try (Connection connection = DriverManager.getConnection(dbUrl, username, password)) {
+                        String query = "SELECT order_details, total_amount FROM orders WHERE order_id = ?";
+                        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+                            stmt.setInt(1, orderId);
+                            try (ResultSet rs = stmt.executeQuery()) {
+                                if (rs.next()) {
+                                    System.out.println("Your Order:");
+                                    System.out.println("Items: " + rs.getString("order_details"));
+                                    System.out.println("Total Amount: $" + rs.getDouble("total_amount"));
+                                } else {
+                                    System.out.println("Order not found.");
+                                }
+                            }
+                        }
+                    } catch (SQLException e) {
+                        System.err.println("Database error: " + e.getMessage());
                     }
+
+                } else if (action == 3) {
+                    continue;
                 }
-            } else if (choice == 5) {
-                // Show current order details
-                if (currentOrder != null) {
-                    System.out.println("\nCurrent order details:");
-                    currentOrder.showOrderDetails();
-                } else {
-                    System.out.println("\nNo order created yet.");
-                }
-            } else if (choice == 6) {
-                // Exit
-                System.out.println("Thank you for using the program!");
+
+            } else if (role == 3) {
                 break;
             } else {
                 System.out.println("Invalid choice. Please try again.");
@@ -113,4 +162,3 @@ public class Main {
         scanner.close();
     }
 }
-
